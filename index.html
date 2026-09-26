@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f8fa">
+  <title>Trading Room Tools — recreación</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <button class="brand" data-view="home" aria-label="Trading Room Tools inicio">
+        <span class="brand-mark"><span></span><span></span><span></span></span>
+        <span class="brand-name">TRADING<span>ROOM</span></span>
+        <small>TOOLS</small>
+      </button>
+      <nav class="main-nav" aria-label="Navegación principal">
+        <button class="nav-link active" data-view="home">Home</button>
+        <button class="nav-link has-chevron" data-view="markets">Markets <span>⌄</span></button>
+        <button class="nav-link" data-view="marketcap">MarketCap</button>
+      </nav>
+      <div class="top-actions">
+        <span class="archive-pill"><i></i> RECREACIÓN</span>
+        <button class="icon-btn" id="themeToggle" title="Cambiar tema" aria-label="Cambiar tema">☼</button>
+        <button class="menu-btn" id="mobileMenu" aria-label="Abrir menú">☰</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" id="homeView">
+        <div>
+          <div class="eyebrow"><span class="pulse"></span> MARKET INTELLIGENCE WORKSPACE</div>
+          <h1>See the market<br><em>before it moves.</em></h1>
+          <p class="hero-copy">A fresh, functional recreation of the original Trading Room tools for scanning price action, volume and Fibonacci levels.</p>
+          <div class="hero-actions">
+            <button class="primary-btn" data-view="markets">Open market scanner <span>↗</span></button>
+            <button class="ghost-btn" data-view="about">How it works <span>→</span></button>
+          </div>
+        </div>
+        <div class="hero-console">
+          <div class="console-head"><span class="window-dots"><i></i><i></i><i></i></span><span>TRADING ROOM / LIVE BOARD</span><span class="console-live"><i></i> LIVE</span></div>
+          <div class="console-chart">
+            <div class="chart-labels"><span>BTC/USDT</span><strong>$67,421.11</strong><b>+2.84%</b></div>
+            <svg viewBox="0 0 640 220" preserveAspectRatio="none" aria-label="Gráfico de mercado decorativo">
+              <defs><linearGradient id="area" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#a4eac5" stop-opacity=".33"/><stop offset="1" stop-color="#a4eac5" stop-opacity="0"/></linearGradient></defs>
+              <g class="grid"><path d="M0 35H640M0 90H640M0 145H640M0 200H640"/><path d="M80 0V220M160 0V220M240 0V220M320 0V220M400 0V220M480 0V220M560 0V220"/></g>
+              <path class="chart-area" d="M0 180 L30 165 L50 177 L75 148 L96 156 L121 127 L140 139 L166 105 L189 115 L215 93 L237 120 L265 87 L291 102 L316 76 L340 88 L367 68 L394 72 L416 49 L443 61 L469 40 L493 57 L519 29 L545 44 L570 22 L603 35 L640 12 L640 220 L0 220 Z"/>
+              <path class="chart-line" d="M0 180 L30 165 L50 177 L75 148 L96 156 L121 127 L140 139 L166 105 L189 115 L215 93 L237 120 L265 87 L291 102 L316 76 L340 88 L367 68 L394 72 L416 49 L443 61 L469 40 L493 57 L519 29 L545 44 L570 22 L603 35 L640 12"/>
+              <line class="chart-marker" x1="520" x2="520" y1="0" y2="220"/><circle cx="520" cy="29" r="5"/>
+            </svg>
+            <div class="chart-axis"><span>09:00</span><span>12:00</span><span>15:00</span><span>18:00</span><span>21:00</span></div>
+          </div>
+          <div class="console-footer"><span><b class="green-dot"></b> 24H CHANGE</span><strong>+1,862.90</strong><span>VOL&nbsp; $1.82B</span><span>FIBO&nbsp; 61.8%</span></div>
+        </div>
+      </section>
+
+      <section class="home-panels" id="homePanels">
+        <div class="section-heading"><div><span class="section-kicker">THE TOOLKIT</span><h2>One room. Every signal.</h2></div><span class="heading-note">Built from the original Trading Room experience</span></div>
+        <div class="tool-cards">
+          <button class="tool-card dark-card" data-view="price">
+            <span class="card-index">01 / SCANNER</span><span class="card-icon">↗</span><h3>Price<br>Action</h3><p>Find the strongest moves across every timeframe.</p><span class="card-link">Explore scanner <b>→</b></span>
+          </button>
+          <button class="tool-card green-card" data-view="volume">
+            <span class="card-index">02 / SCANNER</span><span class="card-icon">▥</span><h3>Volume<br>Scanner</h3><p>Spot unusual activity before it becomes momentum.</p><span class="card-link">Explore scanner <b>→</b></span>
+          </button>
+          <button class="tool-card cream-card" data-view="trends">
+            <span class="card-index">03 / ANALYTICS</span><span class="card-icon">⌁</span><h3>Trends<br>View</h3><p>Read market direction at a glance.</p><span class="card-link">View trends <b>→</b></span>
+          </button>
+          <button class="tool-card lilac-card" data-view="fibo">
+            <span class="card-index">04 / LEVELS</span><span class="card-icon">◒</span><h3>Fibo<br>View</h3><p>Map the levels where price may react.</p><span class="card-link">View levels <b>→</b></span>
+          </button>
+        </div>
+        <div class="legacy-tools"><span>ORIGINAL SCANNERS</span><button data-view="rsi">RSI Scanner <b>↗</b></button><button data-view="highs">Highs &amp; Lows <b>↗</b></button><small>Restored from the archived Trading Room workflow</small></div>
+      </section>
+
+      <section class="workspace hidden" id="workspaceView">
+        <div class="workspace-top">
+          <div><span class="section-kicker">MARKETS / TOOLS</span><h2 id="workspaceTitle">Price Action</h2><p id="workspaceSubtitle">Scan market moves across multiple timeframes.</p></div>
+          <div class="workspace-tools"><span class="data-status" id="dataStatus"><i></i> Demo data</span><button class="refresh-btn" id="refreshBtn">↻ <span>Refresh</span></button></div>
+        </div>
+        <div class="market-tabs" role="tablist">
+          <button class="market-tab active" data-module="price">Price Action</button>
+          <button class="market-tab" data-module="volume">Volume Scanner</button>
+          <button class="market-tab" data-module="trends">Trends View</button>
+          <button class="market-tab" data-module="fibo">Fibo View</button>
+          <button class="market-tab" data-module="rsi">RSI Scanner</button>
+          <button class="market-tab" data-module="highs">Highs &amp; Lows</button>
+        </div>
+        <div class="control-bar">
+          <label class="select-control"><span>Exchange / feed</span><select id="exchangeSelect"><option value="aggregate" selected>Market aggregate</option><option value="binance">Binance</option><option value="bitunix">Bitunix Futures</option><option value="coinbase">Coinbase</option><option value="kraken">Kraken</option><option value="demo">Demo / preview</option></select></label>
+          <label class="select-control"><span>Coin pair</span><select id="quoteSelect"><option value="ALL">ALL PAIRS</option><option value="USDT">USDT</option><option value="USD">USD</option><option value="BTC">BTC</option><option value="ETH">ETH</option></select></label>
+          <label class="search-control"><span>⌕</span><input id="searchInput" type="search" placeholder="Search coin" autocomplete="off"></label>
+          <div class="watch-controls"><button class="watch-toggle active" id="watchToggle">☆ Watch list</button><button class="show-toggle" id="showAllBtn">Show all</button></div>
+        </div>
+        <div class="rsi-filter-bar hidden" id="rsiFilterBar">
+          <label><span>Ver señales</span><select id="rsiSignalFilter"><option value="all">Todas las señales</option><option value="oversold">Solo sobrevendidas ≤ 30</option><option value="overbought">Solo sobrecompradas ≥ 70</option><option value="neutral">Solo neutrales 30–70</option></select></label>
+          <small id="rsiFilterNote">Elige si quieres ver todas, sobrevendidas o sobrecompradas.</small>
+        </div>
+        <div class="range-bar" id="rangeBar"><span class="range-label">Time frame <b id="timeframeLabel">D1</b></span><button data-timeframe="m5">5M</button><button data-timeframe="m15">15M</button><button data-timeframe="h1">1H</button><button data-timeframe="h4">4H</button><button data-timeframe="h6">H6</button><button data-timeframe="h12">H12</button><button class="active" data-timeframe="d1">D1</button><button data-timeframe="d2">D2</button><button data-timeframe="d3">D3</button><button data-timeframe="d7">D7</button><button data-timeframe="d15">D15</button><button data-timeframe="d30">D30</button><button data-timeframe="d100">D100</button><button data-timeframe="d200">D200</button><button data-timeframe="d500">D500</button><span class="range-separator"></span><button class="direction active">↗ Gains</button><button class="direction">↘ Drops</button></div>
+        <section class="fibo-lab hidden" id="fiboLab">
+          <div class="fibo-lab-head"><div><span class="section-kicker">LIVE LEVEL MAP</span><h3 id="fiboChartTitle">BTC / USDT</h3><p id="fiboChartMeta">Fibonacci retracement · 5M</p></div><div class="fibo-chart-status" id="fiboChartStatus"><i></i> Loading candles…</div></div>
+          <div class="fibo-chart-grid"><div class="fibo-chart-card"><svg id="fiboSvg" viewBox="0 0 900 360" preserveAspectRatio="none" aria-label="Gráfico de velas con niveles Fibonacci"></svg></div><aside class="fibo-levels" id="fiboLevels"></aside></div>
+          <p class="fibo-disclaimer" id="fiboChartNote">Los niveles se calculan con el máximo y mínimo del conjunto de velas cargado.</p>
+        </section>
+        <div class="stats-strip"><div><span>Markets tracked</span><strong id="marketsCount">—</strong></div><div><span>Gainers</span><strong class="positive" id="gainersCount">—</strong></div><div><span>Losers</span><strong class="negative" id="losersCount">—</strong></div><div><span>Volume 24H</span><strong id="volumeTotal">—</strong></div><div class="updated-stat"><span>Last updated</span><strong id="updatedAt">—</strong></div></div>
+        <div class="table-shell" id="tableShell"></div>
+        <div class="workspace-foot"><span>Data is for research and educational purposes only. Not financial advice.</span><span>Trading Room Tools <b>•</b> recreated from the original interface</span></div>
+      </section>
+
+      <section class="info-page hidden" id="infoView">
+        <button class="back-link" data-view="home">← Back to dashboard</button>
+        <span class="section-kicker">TRADING ROOM / ABOUT</span><h2>Signals, not noise.</h2><p class="info-lead">This is a from-scratch recreation of the discontinued Trading Room Tools interface, preserving its core workflow while making the data layer easier to extend.</p>
+        <div class="info-grid"><div><span>01</span><h3>Scan faster</h3><p>Filter hundreds of markets by exchange, quote currency, time frame and direction.</p></div><div><span>02</span><h3>Compare clearly</h3><p>Move from price action to volume, trend and Fibonacci context without losing your place.</p></div><div><span>03</span><h3>Stay grounded</h3><p>Every screen keeps research context visible. This tool does not give financial advice.</p></div></div>
+      </section>
+    </main>
+    <footer class="site-footer"><span>© 2026 Trading Room Tools recreation</span><span>Research &amp; educational workspace</span><span>Made to bring the old workflow back</span></footer>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>
