@@ -450,6 +450,12 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, JSON.stringify({ exchange, provider, live: exchange !== 'demo', updatedAt: new Date().toISOString(), rows }));
       } catch (error) {
         // Some regions block a particular exchange API. Keep the scanner useful with a live aggregate feed.
+        if (exchange === 'aggregate') {
+          try {
+            const rows = await bitunixData();
+            return send(res, 200, JSON.stringify({ exchange, provider: 'Bitunix Futures fallback', live: true, fallback: true, message: `Aggregate unavailable: ${error.message}`, quote: 'USDT', updatedAt: new Date().toISOString(), rows }));
+          } catch (_) {}
+        }
         if (exchange !== 'demo' && exchange !== 'aggregate') {
           try {
             const fallbackQuote = ['binance', 'bitunix'].includes(exchange) ? 'USDT' : quote === 'ALL' ? 'USD' : quote;
