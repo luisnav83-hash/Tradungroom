@@ -5,3 +5,5 @@ uploads/
 .env.*
 *.log
 .DS_Store
+
+.ssh/
