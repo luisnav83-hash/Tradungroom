@@ -14,13 +14,17 @@ const state = {
   fiboRequestId: 0,
   fiboLevels: new Map(),
   rsiSignal: 'all',
+  preMoveValues: new Map(),
+  preMoveRequestId: 0,
+  preMoveMinScore: 0,
+  preMoveDirection: 'all',
   loading: false
 };
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
-const moduleNames = { price: 'Price Action', volume: 'Volume Scanner', trends: 'Trends View', fibo: 'Fibo View', rsi: 'RSI Scanner', highs: 'Highs & Lows' };
-const subtitles = { price: 'Scan market moves across multiple timeframes.', volume: 'Follow liquidity, volume and momentum as it builds.', trends: 'Read the market direction at a glance.', fibo: 'Map the levels where price may react.', rsi: 'Find overbought and oversold markets before the turn.', highs: 'See which markets are pressing their daily extremes.' };
+const moduleNames = { price: 'Price Action', volume: 'Volume Scanner', trends: 'Trends View', fibo: 'Fibo View', rsi: 'RSI Scanner', premove: 'Pre-Move Scanner', highs: 'Highs & Lows' };
+const subtitles = { price: 'Scan market moves across multiple timeframes.', volume: 'Follow liquidity, volume and momentum as it builds.', trends: 'Read the market direction at a glance.', fibo: 'Map the levels where price may react.', rsi: 'Find overbought and oversold markets before the turn.', premove: 'Find compressed markets approaching a measurable breakout zone.', highs: 'See which markets are pressing their daily extremes.' };
 const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const localDemoRows = [
   ['BTC','USDT',67421.11,2.84,1820000000,1320000000000], ['ETH','USDT',3544.74,1.26,941000000,426000000000],
@@ -152,6 +156,50 @@ async function loadRsiValues() {
   } catch (_) {
     // Keep the locally estimated value if the candle endpoint is unavailable.
   }
+}
+async function loadPreMoveValues() {
+  const requestId = ++state.preMoveRequestId;
+  if (state.module !== 'premove') return;
+  const timeframe = chartTimeframe();
+  const rows = filteredRows();
+  const preferred = rows.filter(row => ['BTC','ETH','ADA','SOL','XRP','DOGE','BNB','AVAX','LINK','DOT','SUI','PEPE','UNI','APT','NEAR'].includes(row.base));
+  const candidates = [...new Map([...preferred, ...rows].map(row => [row.base, row])).values()].slice(0, 24);
+  if (!candidates.length) return;
+  try {
+    const symbols = candidates.map(row => row.base).join(',');
+    const response = await fetch(`/api/pre-move?symbols=${encodeURIComponent(symbols)}&timeframe=${timeframe}&exchange=${encodeURIComponent(state.exchange)}&limit=120`, { cache: 'no-store' });
+    if (!response.ok) return;
+    const payload = await response.json();
+    if (requestId !== state.preMoveRequestId) return;
+    Object.entries(payload.values || {}).forEach(([symbol, item]) => {
+      if (item && Number.isFinite(item.score)) state.preMoveValues.set(symbol, item);
+    });
+    renderStats();
+    renderTable();
+  } catch (_) {
+    // Keep the table honest when the candle source is unavailable.
+  }
+}
+function preMoveTable(rows) {
+  const headers = ['Market', 'Score', 'Setup', 'Compression', 'Volume', 'Breakout', 'Trend', 'ATR'];
+  const availableRows = rows.filter(row => {
+    const value = state.preMoveValues.get(row.base);
+    return value && Number(value.score) >= state.preMoveMinScore && (state.preMoveDirection === 'all' || value.side === state.preMoveDirection);
+  });
+  if (!availableRows.length) {
+    const waiting = state.preMoveValues.size === 0;
+    const filterLabel = state.preMoveDirection === 'up' ? 'alcistas' : state.preMoveDirection === 'down' ? 'bajistas' : 'con este nivel de preparación';
+    return `<div class="empty-state"><div><b>${waiting ? 'Cargando condiciones…' : `No hay mercados ${filterLabel}`}</b><span>${waiting ? 'Calculando compresión, volumen, ATR y proximidad a ruptura con velas reales.' : 'Prueba otra temporalidad o relaja el filtro de puntuación.'}</span></div></div>`;
+  }
+  const body = availableRows.sort((a, b) => state.preMoveValues.get(b.base).score - state.preMoveValues.get(a.base).score).map(row => {
+    const value = state.preMoveValues.get(row.base);
+    const scoreClass = value.score >= 70 ? 'high' : value.score >= 50 ? 'medium' : 'low';
+    const sideLabel = value.side === 'up' ? 'Alcista' : value.side === 'down' ? 'Bajista' : 'Neutral';
+    const trendLabel = value.trend === 'up' ? 'Alcista' : value.trend === 'down' ? 'Bajista' : 'Neutral';
+    const distance = value.side === 'up' ? value.breakout.upDistanceAtr : value.side === 'down' ? value.breakout.downDistanceAtr : Math.min(value.breakout.upDistanceAtr, value.breakout.downDistanceAtr);
+    return `<tr><td>${coinCell(row)}</td><td><span class="premove-score ${scoreClass}">${value.score}/100</span></td><td><span class="signal ${value.side === 'up' ? 'bullish' : value.side === 'down' ? 'bearish' : 'neutral'}">${sideLabel} · ${esc(value.status)}</span></td><td class="num">${value.compression.active ? 'Sí' : 'No'} · ${value.compression.percentile.toFixed(0)}%</td><td class="num">${value.volume.relative.toFixed(1)}x</td><td class="num">${Number.isFinite(distance) ? `${distance.toFixed(2)} ATR` : '—'}</td><td>${trendLabel}</td><td class="num">${value.atr.ratio.toFixed(2)}x</td></tr>`;
+  }).join('');
+  return table(headers, body, availableRows.length, 'Pre-Move Scanner');
 }
 function rsiTable(rows) {
   const headers = ['Market', 'Price', 'RSI 14', 'Signal', '24H', '3D', 'Volume 24H', 'Momentum'];
@@ -322,7 +370,7 @@ async function loadFiboChart() {
 }
 function renderTable() {
   const rows = filteredRows();
-  let markup = state.module === 'price' ? priceTable(rows) : state.module === 'volume' ? volumeTable(rows) : state.module === 'trends' ? trendsTable(rows) : state.module === 'fibo' ? fiboTable(rows) : state.module === 'rsi' ? rsiTable(rows) : highsTable(rows);
+  let markup = state.module === 'price' ? priceTable(rows) : state.module === 'volume' ? volumeTable(rows) : state.module === 'trends' ? trendsTable(rows) : state.module === 'fibo' ? fiboTable(rows) : state.module === 'rsi' ? rsiTable(rows) : state.module === 'premove' ? preMoveTable(rows) : highsTable(rows);
   $('#tableShell').innerHTML = markup;
   $$('#tableShell [data-star]').forEach(button => button.addEventListener('click', () => {
     const symbol = button.dataset.star;
@@ -346,19 +394,27 @@ function renderWorkspace() {
   $$('.market-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.module === state.module));
   $('#rangeBar').classList.remove('hidden');
   $('#rsiFilterBar').classList.toggle('hidden', state.module !== 'rsi');
+  $('#premoveFilterBar').classList.toggle('hidden', state.module !== 'premove');
   $('#rsiFilterNote').textContent = 'Elige si quieres ver todas, sobrevendidas o sobrecompradas.';
+  $('#premoveFilterNote').textContent = 'Puntuación explicable: compresión, volumen, proximidad, tendencia y ATR. No es una predicción.';
   const fiboTimeframes = new Set(['m5', 'm15', 'h1', 'h4', 'h6', 'h12', 'd1', 'd7']);
+  const preMoveTimeframes = new Set(['m5', 'm15', 'h1', 'h4', 'h6', 'h12', 'd1', 'd7']);
   if (state.module === 'fibo' && !fiboTimeframes.has(state.timeframe)) {
     state.timeframe = 'd1';
     state.rsiValues.clear();
     state.fiboLevels.clear();
   }
-  $$('#rangeBar > button[data-timeframe]').forEach(button => button.classList.toggle('hidden', state.module === 'fibo' && !fiboTimeframes.has(button.dataset.timeframe)));
+  if (state.module === 'premove' && !preMoveTimeframes.has(state.timeframe)) {
+    state.timeframe = 'm15';
+    state.preMoveValues.clear();
+  }
+  $$('#rangeBar > button[data-timeframe]').forEach(button => button.classList.toggle('hidden', (state.module === 'fibo' && !fiboTimeframes.has(button.dataset.timeframe)) || (state.module === 'premove' && !preMoveTimeframes.has(button.dataset.timeframe))));
   $('#timeframeLabel').textContent = state.timeframe.toUpperCase();
   $('#fiboLab').classList.toggle('hidden', state.module !== 'fibo');
   renderStats();
   renderTable();
   if (state.module === 'rsi') loadRsiValues();
+  if (state.module === 'premove') loadPreMoveValues();
   if (state.module === 'fibo') loadFiboChart();
 }
 async function loadData() {
@@ -404,7 +460,7 @@ function openModule(module) {
 
 $$('[data-view]').forEach(button => button.addEventListener('click', () => {
   const view = button.dataset.view;
-  if (['price','volume','trends','fibo','rsi','highs'].includes(view)) openModule(view);
+  if (['price','volume','trends','fibo','rsi','premove','highs'].includes(view)) openModule(view);
   else if (view === 'markets') openModule('price');
   else if (view === 'about') showPage('info');
   else showPage('home');
@@ -416,6 +472,8 @@ $('#exchangeSelect').addEventListener('change', (event) => {
   state.rsiValues.clear();
   state.rsiRequestId += 1;
   state.fiboLevels.clear();
+  state.preMoveValues.clear();
+  state.preMoveRequestId += 1;
   if (['binance', 'bitunix'].includes(state.exchange) && !['ALL', 'USDT'].includes(state.quote)) state.quote = 'USDT';
   if (['coinbase', 'kraken'].includes(state.exchange) && !['ALL', 'USD'].includes(state.quote)) state.quote = 'USD';
   if (state.exchange === 'demo' && !['ALL', 'USDT'].includes(state.quote)) state.quote = 'USDT';
@@ -427,6 +485,8 @@ $('#quoteSelect').addEventListener('change', (event) => {
   state.rsiValues.clear();
   state.rsiRequestId += 1;
   state.fiboLevels.clear();
+  state.preMoveValues.clear();
+  state.preMoveRequestId += 1;
   // The aggregate feed can convert the same markets to USD, USDT, BTC or ETH.
   // Reload it when the quote changes instead of filtering away the current feed.
   if (state.exchange === 'aggregate') loadData();
@@ -440,6 +500,14 @@ $('#rsiSignalFilter').addEventListener('change', (event) => {
   state.rsiSignal = event.target.value;
   renderTable();
 });
+$('#premoveScoreFilter').addEventListener('change', (event) => {
+  state.preMoveMinScore = Number(event.target.value) || 0;
+  renderTable();
+});
+$('#premoveDirectionFilter').addEventListener('change', (event) => {
+  state.preMoveDirection = event.target.value;
+  renderTable();
+});
 $$('#rangeBar button').forEach(button => button.addEventListener('click', () => {
   if (button.classList.contains('direction')) {
     state.sort = button.textContent.includes('Drops') ? 'drops' : 'gains';
@@ -449,6 +517,8 @@ $$('#rangeBar button').forEach(button => button.addEventListener('click', () => 
     state.rsiValues.clear();
     state.rsiRequestId += 1;
     state.fiboLevels.clear();
+    state.preMoveValues.clear();
+    state.preMoveRequestId += 1;
     $$('#rangeBar > button:not(.direction)').forEach(el => el.classList.toggle('active', el === button));
   }
   renderWorkspace();

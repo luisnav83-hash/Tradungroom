@@ -71,7 +71,7 @@
             <span class="card-index">04 / LEVELS</span><span class="card-icon">◒</span><h3>Fibo<br>View</h3><p>Map the levels where price may react.</p><span class="card-link">View levels <b>→</b></span>
           </button>
         </div>
-        <div class="legacy-tools"><span>ORIGINAL SCANNERS</span><button data-view="rsi">RSI Scanner <b>↗</b></button><button data-view="highs">Highs &amp; Lows <b>↗</b></button><small>Restored from the archived Trading Room workflow</small></div>
+        <div class="legacy-tools"><span>ORIGINAL SCANNERS</span><button data-view="rsi">RSI Scanner <b>↗</b></button><button data-view="premove">Pre-Move Scanner <b>↗</b></button><button data-view="highs">Highs &amp; Lows <b>↗</b></button><small>Restored from the archived Trading Room workflow</small></div>
       </section>
 
       <section class="workspace hidden" id="workspaceView">
@@ -85,6 +85,7 @@
           <button class="market-tab" data-module="trends">Trends View</button>
           <button class="market-tab" data-module="fibo">Fibo View</button>
           <button class="market-tab" data-module="rsi">RSI Scanner</button>
+          <button class="market-tab" data-module="premove">Pre-Move Scanner</button>
           <button class="market-tab" data-module="highs">Highs &amp; Lows</button>
         </div>
         <div class="control-bar">
@@ -96,6 +97,11 @@
         <div class="rsi-filter-bar hidden" id="rsiFilterBar">
           <label><span>Ver señales</span><select id="rsiSignalFilter"><option value="all">Todas las señales</option><option value="oversold">Solo sobrevendidas ≤ 30</option><option value="overbought">Solo sobrecompradas ≥ 70</option><option value="neutral">Solo neutrales 30–70</option></select></label>
           <small id="rsiFilterNote">Elige si quieres ver todas, sobrevendidas o sobrecompradas.</small>
+        </div>
+        <div class="rsi-filter-bar hidden" id="premoveFilterBar">
+          <label><span>Puntuación mínima</span><select id="premoveScoreFilter"><option value="0">Todos los resultados</option><option value="50">Preparación ≥ 50</option><option value="70">Preparación ≥ 70</option></select></label>
+          <label><span>Dirección cercana</span><select id="premoveDirectionFilter"><option value="all">Todas</option><option value="up">Ruptura alcista</option><option value="down">Ruptura bajista</option></select></label>
+          <small id="premoveFilterNote">Se calcula con velas reales: compresión, volumen, proximidad, tendencia y ATR.</small>
         </div>
         <div class="range-bar" id="rangeBar"><span class="range-label">Time frame <b id="timeframeLabel">D1</b></span><button data-timeframe="m5">5M</button><button data-timeframe="m15">15M</button><button data-timeframe="h1">1H</button><button data-timeframe="h4">4H</button><button data-timeframe="h6">H6</button><button data-timeframe="h12">H12</button><button class="active" data-timeframe="d1">D1</button><button data-timeframe="d2">D2</button><button data-timeframe="d3">D3</button><button data-timeframe="d7">D7</button><button data-timeframe="d15">D15</button><button data-timeframe="d30">D30</button><button data-timeframe="d100">D100</button><button data-timeframe="d200">D200</button><button data-timeframe="d500">D500</button><span class="range-separator"></span><button class="direction active">↗ Gains</button><button class="direction">↘ Drops</button></div>
         <section class="fibo-lab hidden" id="fiboLab">

@@ -169,6 +169,97 @@ function calculateRsi(closes) {
 
 const candleIntervals = { m5: { bitunix: '5m', kraken: 5, gecko: ['minute', 5] }, m15: { bitunix: '15m', kraken: 15, gecko: ['minute', 15] }, h1: { bitunix: '1h', kraken: 60, gecko: ['hour', 1] }, h4: { bitunix: '4h', kraken: 240, gecko: ['hour', 4] }, h6: { bitunix: '6h', kraken: 360, gecko: ['hour', 6] }, h12: { bitunix: '12h', kraken: 720, gecko: ['hour', 12] }, d1: { bitunix: '1d', kraken: 1440, gecko: ['day', 1] }, d7: { bitunix: '1w', kraken: 10080, gecko: ['day', 7] } };
 
+function mean(values) {
+  const valid = values.filter(Number.isFinite);
+  return valid.length ? valid.reduce((sum, value) => sum + value, 0) / valid.length : 0;
+}
+function standardDeviation(values) {
+  const average = mean(values);
+  return Math.sqrt(mean(values.map(value => (value - average) ** 2)));
+}
+function emaSeries(values, period) {
+  if (values.length < period) return [];
+  const result = [];
+  let ema = mean(values.slice(0, period));
+  for (let index = period - 1; index < values.length; index += 1) {
+    if (index === period - 1) result.push(ema);
+    else {
+      ema = ((values[index] - ema) * (2 / (period + 1))) + ema;
+      result.push(ema);
+    }
+  }
+  return result;
+}
+function rollingMean(values, period) {
+  const result = [];
+  for (let index = period - 1; index < values.length; index += 1) result.push(mean(values.slice(index - period + 1, index + 1)));
+  return result;
+}
+function percentileRank(values, value) {
+  if (!values.length) return 50;
+  return (values.filter(item => item <= value).length / values.length) * 100;
+}
+function trueRanges(candles) {
+  return candles.map((candle, index) => {
+    const previousClose = index ? candles[index - 1][4] : candle[1];
+    return Math.max(candle[2] - candle[3], Math.abs(candle[2] - previousClose), Math.abs(candle[3] - previousClose));
+  });
+}
+function calculatePreMove(candles) {
+  if (!Array.isArray(candles) || candles.length < 60) throw new Error('Not enough candles for pre-move scan');
+  const closes = candles.map(candle => candle[4]);
+  const highs = candles.map(candle => candle[2]);
+  const lows = candles.map(candle => candle[3]);
+  const volumes = candles.map(candle => candle[5]).filter(Number.isFinite);
+  const latest = closes[closes.length - 1];
+  const ema20Series = emaSeries(closes, 20);
+  const ema50Series = emaSeries(closes, 50);
+  const ema20 = ema20Series.at(-1);
+  const ema50 = ema50Series.at(-1);
+  const trend = latest > ema20 && ema20 > ema50 ? 'up' : latest < ema20 && ema20 < ema50 ? 'down' : 'neutral';
+  const tr = trueRanges(candles);
+  const atrSeries = rollingMean(tr, 14);
+  const atr = atrSeries.at(-1);
+  const atrBaseline = mean(atrSeries.slice(-21, -1)) || atr;
+  const atrRatio = atrBaseline ? atr / atrBaseline : 1;
+  const bbWidths = [];
+  for (let index = 19; index < closes.length; index += 1) {
+    const window = closes.slice(index - 19, index + 1);
+    const middle = mean(window);
+    bbWidths.push(middle ? (standardDeviation(window) * 4 / middle) * 100 : 0);
+  }
+  const bbWidth = bbWidths.at(-1) || 0;
+  const bbPercentile = percentileRank(bbWidths.slice(-80), bbWidth);
+  const volumeAverage = mean(volumes.slice(-21, -1));
+  const relativeVolume = volumeAverage ? volumes.at(-1) / volumeAverage : 0;
+  const recentHigh = Math.max(...highs.slice(-21, -1));
+  const recentLow = Math.min(...lows.slice(-21, -1));
+  const upDistanceAtr = atr ? Math.max(0, (recentHigh - latest) / atr) : Infinity;
+  const downDistanceAtr = atr ? Math.max(0, (latest - recentLow) / atr) : Infinity;
+  const nearUp = upDistanceAtr <= 0.75;
+  const nearDown = downDistanceAtr <= 0.75;
+  const side = nearUp && upDistanceAtr <= downDistanceAtr ? 'up' : nearDown ? 'down' : 'neutral';
+  const compression = bbPercentile <= 25;
+  const volumeExpansion = relativeVolume >= 1.5;
+  const breakoutProximity = side !== 'neutral';
+  const trendAlignment = side !== 'neutral' && side === trend;
+  const atrExpansion = atrRatio >= 1.2;
+  const score = (compression ? 25 : 0) + (volumeExpansion ? 20 : 0) + (breakoutProximity ? 25 : 0) + (trendAlignment ? 15 : 0) + (atrExpansion ? 15 : 0);
+  return {
+    score,
+    status: score >= 70 ? 'Strong setup' : score >= 50 ? 'Watching' : 'Low activity',
+    side,
+    trend,
+    compression: { active: compression, width: Number(bbWidth.toFixed(3)), percentile: Number(bbPercentile.toFixed(1)) },
+    volume: { relative: Number(relativeVolume.toFixed(2)), average: Number(volumeAverage.toFixed(8)) },
+    breakout: { side, upDistanceAtr: Number(upDistanceAtr.toFixed(2)), downDistanceAtr: Number(downDistanceAtr.toFixed(2)), recentHigh, recentLow },
+    atr: { value: Number(atr.toFixed(8)), ratio: Number(atrRatio.toFixed(2)), expanding: atrExpansion },
+    trendData: { ema20: Number(ema20.toFixed(8)), ema50: Number(ema50.toFixed(8)), direction: trend },
+    last: latest,
+    candles: candles.length
+  };
+}
+
 async function bitunixCandles(symbol, timeframe, limit = 90) {
   const interval = candleIntervals[timeframe]?.bitunix;
   if (!interval) throw new Error('Unsupported Bitunix timeframe');
@@ -323,6 +414,22 @@ const server = http.createServer(async (req, res) => {
       } catch (error) {
         return send(res, 502, JSON.stringify({ error: error.message, symbol, timeframe }));
       }
+    }
+    if (url.pathname === '/api/pre-move') {
+      const timeframe = url.searchParams.get('timeframe') || 'm15';
+      const exchange = url.searchParams.get('exchange') || 'aggregate';
+      const symbols = (url.searchParams.get('symbols') || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean).slice(0, 24);
+      const limit = Math.min(Math.max(Number(url.searchParams.get('limit') || 120), 80), 200);
+      if (!candleIntervals[timeframe] || symbols.length === 0) return send(res, 400, JSON.stringify({ error: 'Use a supported timeframe and at least one symbol' }));
+      const entries = await Promise.all(symbols.map(async symbol => {
+        try {
+          const result = await getCandles(symbol, timeframe, exchange, limit);
+          return [symbol, { ...calculatePreMove(result.candles), source: result.source }];
+        } catch (error) {
+          return [symbol, { error: error.message }];
+        }
+      }));
+      return send(res, 200, JSON.stringify({ timeframe, exchange, values: Object.fromEntries(entries) }));
     }
     if (url.pathname === '/api/rsi') {
       const interval = Number(url.searchParams.get('interval') || 5);
