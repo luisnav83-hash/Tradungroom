@@ -1,0 +1,9 @@
+{
+  "name": "tradingroom-recreated",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Recreación funcional de Trading Room Tools",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
