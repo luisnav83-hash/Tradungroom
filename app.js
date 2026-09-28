@@ -181,7 +181,7 @@ async function loadPreMoveValues() {
   }
 }
 function preMoveTable(rows) {
-  const headers = ['Market', 'Score', 'Setup', 'Compression', 'Volume', 'Breakout', 'Trend', 'ATR'];
+  const headers = ['Market', 'Score', 'Setup', 'Compression', 'Volume', 'Breakout / close', 'Trend', 'ATR', 'Liquidity'];
   const availableRows = rows.filter(row => {
     const value = state.preMoveValues.get(row.base);
     return value && Number(value.score) >= state.preMoveMinScore && (state.preMoveDirection === 'all' || value.side === state.preMoveDirection);
@@ -197,7 +197,11 @@ function preMoveTable(rows) {
     const sideLabel = value.side === 'up' ? 'Alcista' : value.side === 'down' ? 'Bajista' : 'Neutral';
     const trendLabel = value.trend === 'up' ? 'Alcista' : value.trend === 'down' ? 'Bajista' : 'Neutral';
     const distance = value.side === 'up' ? value.breakout.upDistanceAtr : value.side === 'down' ? value.breakout.downDistanceAtr : Math.min(value.breakout.upDistanceAtr, value.breakout.downDistanceAtr);
-    return `<tr><td>${coinCell(row)}</td><td><span class="premove-score ${scoreClass}">${value.score}/100</span></td><td><span class="signal ${value.side === 'up' ? 'bullish' : value.side === 'down' ? 'bearish' : 'neutral'}">${sideLabel} · ${esc(value.status)}</span></td><td class="num">${value.compression.active ? 'Sí' : 'No'} · ${value.compression.percentile.toFixed(0)}%</td><td class="num">${value.volume.relative.toFixed(1)}x</td><td class="num">${Number.isFinite(distance) ? `${distance.toFixed(2)} ATR` : '—'}</td><td>${trendLabel}</td><td class="num">${value.atr.ratio.toFixed(2)}x</td></tr>`;
+    const breakoutLabel = value.breakout?.confirmed ? 'Ruptura cerrada' : distance === 0 ? 'Nivel alcanzado' : Number.isFinite(distance) ? `${distance.toFixed(2)} ATR` : '—';
+    const closeLabel = value.lastCandleClosed === false ? 'Vela en formación' : value.breakout?.confirmed ? 'Confirmada' : 'Pendiente cierre';
+    const points = [['Comp', value.breakdown?.compression], ['Vol', value.breakdown?.volume], ['Rupt', value.breakdown?.breakout], ['EMA', value.breakdown?.trend], ['ATR', value.breakdown?.atr]].filter(([, pointsValue]) => Number(pointsValue) > 0).map(([label, pointsValue]) => `+${pointsValue} ${label}`).join(' · ');
+    const liquidity = value.liquidity?.quality === 'high' ? 'Alta' : value.liquidity?.quality === 'medium' ? 'Media' : 'Baja';
+    return `<tr><td>${coinCell(row)}</td><td><span class="premove-score ${scoreClass}">${value.score}/100</span><small class="premove-breakdown">${points || 'Sin factores activos'}</small></td><td><span class="signal ${value.side === 'up' ? 'bullish' : value.side === 'down' ? 'bearish' : 'neutral'}">${sideLabel} · ${esc(value.status)}</span><small class="premove-confirmation">${closeLabel}</small></td><td class="num">${value.compression.active ? 'Sí' : 'No'} · P${value.compression.percentile.toFixed(0)}</td><td class="num">${value.volume.relative.toFixed(2)}x</td><td class="num">${breakoutLabel}</td><td>${trendLabel}</td><td class="num">${value.atr.ratio.toFixed(2)}x</td><td><span class="premove-liquidity ${value.liquidity?.quality || 'low'}">${liquidity}</span></td></tr>`;
   }).join('');
   return table(headers, body, availableRows.length, 'Pre-Move Scanner');
 }

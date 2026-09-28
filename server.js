@@ -205,19 +205,24 @@ function trueRanges(candles) {
     return Math.max(candle[2] - candle[3], Math.abs(candle[2] - previousClose), Math.abs(candle[3] - previousClose));
   });
 }
-function calculatePreMove(candles) {
+function calculatePreMove(candles, timeframe = 'm15') {
   if (!Array.isArray(candles) || candles.length < 60) throw new Error('Not enough candles for pre-move scan');
-  const closes = candles.map(candle => candle[4]);
-  const highs = candles.map(candle => candle[2]);
-  const lows = candles.map(candle => candle[3]);
-  const volumes = candles.map(candle => candle[5]).filter(Number.isFinite);
-  const latest = closes[closes.length - 1];
+  const durationMs = { m5: 300000, m15: 900000, h1: 3600000, h4: 14400000, h6: 21600000, h12: 43200000, d1: 86400000, d7: 604800000 }[timeframe] || 900000;
+  const lastCandle = candles.at(-1);
+  const lastCandleClosed = Number.isFinite(lastCandle?.[0]) ? Date.now() >= lastCandle[0] + durationMs : true;
+  const analysisCandles = lastCandleClosed ? candles : candles.slice(0, -1);
+  if (analysisCandles.length < 60) throw new Error('Not enough closed candles for pre-move scan');
+  const closes = analysisCandles.map(candle => candle[4]);
+  const highs = analysisCandles.map(candle => candle[2]);
+  const lows = analysisCandles.map(candle => candle[3]);
+  const volumes = analysisCandles.map(candle => candle[5]).filter(Number.isFinite);
+  const latest = closes.at(-1);
   const ema20Series = emaSeries(closes, 20);
   const ema50Series = emaSeries(closes, 50);
   const ema20 = ema20Series.at(-1);
   const ema50 = ema50Series.at(-1);
   const trend = latest > ema20 && ema20 > ema50 ? 'up' : latest < ema20 && ema20 < ema50 ? 'down' : 'neutral';
-  const tr = trueRanges(candles);
+  const tr = trueRanges(analysisCandles);
   const atrSeries = rollingMean(tr, 14);
   const atr = atrSeries.at(-1);
   const atrBaseline = mean(atrSeries.slice(-21, -1)) || atr;
@@ -231,7 +236,8 @@ function calculatePreMove(candles) {
   const bbWidth = bbWidths.at(-1) || 0;
   const bbPercentile = percentileRank(bbWidths.slice(-80), bbWidth);
   const volumeAverage = mean(volumes.slice(-21, -1));
-  const relativeVolume = volumeAverage ? volumes.at(-1) / volumeAverage : 0;
+  const latestVolume = volumes.at(-1) || 0;
+  const relativeVolume = volumeAverage ? latestVolume / volumeAverage : 0;
   const recentHigh = Math.max(...highs.slice(-21, -1));
   const recentLow = Math.min(...lows.slice(-21, -1));
   const upDistanceAtr = atr ? Math.max(0, (recentHigh - latest) / atr) : Infinity;
@@ -244,19 +250,34 @@ function calculatePreMove(candles) {
   const breakoutProximity = side !== 'neutral';
   const trendAlignment = side !== 'neutral' && side === trend;
   const atrExpansion = atrRatio >= 1.2;
-  const score = (compression ? 25 : 0) + (volumeExpansion ? 20 : 0) + (breakoutProximity ? 25 : 0) + (trendAlignment ? 15 : 0) + (atrExpansion ? 15 : 0);
+  const breakoutConfirmed = lastCandleClosed && ((side === 'up' && latest >= recentHigh) || (side === 'down' && latest <= recentLow));
+  const breakdown = {
+    compression: compression ? 25 : 0,
+    volume: volumeExpansion ? 20 : 0,
+    breakout: breakoutProximity ? 25 : 0,
+    trend: trendAlignment ? 15 : 0,
+    atr: atrExpansion ? 15 : 0
+  };
+  const score = Object.values(breakdown).reduce((sum, points) => sum + points, 0);
+  const averageQuoteVolume = mean(analysisCandles.slice(-21, -1).map(candle => candle[5]).filter(Number.isFinite));
+  const liquidity = averageQuoteVolume >= 1000000 ? 'high' : averageQuoteVolume >= 100000 ? 'medium' : 'low';
   return {
     score,
-    status: score >= 70 ? 'Strong setup' : score >= 50 ? 'Watching' : 'Low activity',
+    status: breakoutConfirmed ? 'Closed breakout' : score >= 70 ? 'Strong setup' : score >= 50 ? 'Watching' : 'Low activity',
+    confirmation: breakoutConfirmed ? 'confirmed' : 'pending',
     side,
     trend,
+    breakdown,
     compression: { active: compression, width: Number(bbWidth.toFixed(3)), percentile: Number(bbPercentile.toFixed(1)) },
-    volume: { relative: Number(relativeVolume.toFixed(2)), average: Number(volumeAverage.toFixed(8)) },
-    breakout: { side, upDistanceAtr: Number(upDistanceAtr.toFixed(2)), downDistanceAtr: Number(downDistanceAtr.toFixed(2)), recentHigh, recentLow },
+    volume: { relative: Number(relativeVolume.toFixed(2)), average: Number(volumeAverage.toFixed(8)), latest: Number(latestVolume.toFixed(8)), expansion: volumeExpansion },
+    breakout: { side, confirmed: breakoutConfirmed, upDistanceAtr: Number(upDistanceAtr.toFixed(2)), downDistanceAtr: Number(downDistanceAtr.toFixed(2)), recentHigh, recentLow },
     atr: { value: Number(atr.toFixed(8)), ratio: Number(atrRatio.toFixed(2)), expanding: atrExpansion },
     trendData: { ema20: Number(ema20.toFixed(8)), ema50: Number(ema50.toFixed(8)), direction: trend },
+    liquidity: { averageQuoteVolume: Number(averageQuoteVolume.toFixed(2)), quality: liquidity },
     last: latest,
-    candles: candles.length
+    candles: analysisCandles.length,
+    lastCandleClosed,
+    candleTime: analysisCandles.at(-1)?.[0] || null
   };
 }
 
@@ -424,7 +445,7 @@ const server = http.createServer(async (req, res) => {
       const entries = await Promise.all(symbols.map(async symbol => {
         try {
           const result = await getCandles(symbol, timeframe, exchange, limit);
-          return [symbol, { ...calculatePreMove(result.candles), source: result.source }];
+          return [symbol, { ...calculatePreMove(result.candles, timeframe), source: result.source }];
         } catch (error) {
           return [symbol, { error: error.message }];
         }
